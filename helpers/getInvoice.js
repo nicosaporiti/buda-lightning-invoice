@@ -1,7 +1,7 @@
 const getInvoice = (amount, msg) => {
   const apiKey = process.env.BUDA_API_KEY;
   const apiSecret = process.env.BUDA_API_SECRET;
-  const Buda = require('../node_modules/buda-promise/buda');
+  const Buda = require('../buda-promise/buda');
   const privateBuda = new Buda(apiKey, apiSecret);
 
   return privateBuda
