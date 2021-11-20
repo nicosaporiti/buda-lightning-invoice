@@ -11,7 +11,7 @@ router.post(
       .notEmpty()
       .isNumeric()
       .isInt({ min: 1 }),
-    check('msg', 'Debe ingresar un mensaje').notEmpty().isLength({ min: 3 }),
+    check('msg', 'Debe ingresar un mensaje').notEmpty().isLength({ min: 1 }),
   ],
   fieldsValidation,
   newInvoice
