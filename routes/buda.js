@@ -2,7 +2,7 @@ const { Router } = require('express');
 const { check } = require('express-validator');
 const { fieldsValidation } = require('../middlewares/fields-validator');
 const router = Router();
-const { newInvoice } = require('../controllers/buda');
+const { newInvoice, paymentConfirmation } = require('../controllers/buda');
 
 router.post(
   '/newinvoice',
@@ -15,6 +15,13 @@ router.post(
   ],
   fieldsValidation,
   newInvoice
+);
+
+router.post(
+  '/status',
+  [check('invoice', 'Ingrese invoice').notEmpty().isString()],
+  fieldsValidation,
+  paymentConfirmation
 );
 
 module.exports = router;
