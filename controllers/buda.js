@@ -41,16 +41,9 @@ const callback = async (req, res = response) => {
   const { amount, comment } = req.query;
 
   try {
-    if (amount <= 0) {
-      res.status(400).json({
-        ok: false,
-        error: 'Amount must be greater than 0',
-      });
-    }
-    if (comment === '') {
-      comment = 'Pago recibido por Lightning Address';
-    }
-    const pr = await getInvoice(amount, comment);
+
+    const memo = (!comment) ? 'Pago desde Lightning Address' : comment;
+    const pr = await getInvoice(amount / 1000, memo);
     res.send({
       pr: pr,
       successAction: {

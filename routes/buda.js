@@ -31,10 +31,10 @@ router.post(
 router.post(
   '/callback',
   [
-    check('amount', 'Ingrese un número entero mayor a 0')
+    check('amount', 'Ingrese un número entero mayor a 1000 msats')
       .notEmpty()
       .isNumeric()
-      .isInt({ min: 0 }),
+      .isInt({ min: 1000 }),
   ],
   fieldsValidation,
   callback
