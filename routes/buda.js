@@ -28,7 +28,7 @@ router.post(
   paymentConfirmation
 );
 
-router.post(
+router.get(
   '/callback',
   [
     check('amount', 'Ingrese un número entero mayor a 1000 msats')
