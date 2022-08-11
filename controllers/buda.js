@@ -41,8 +41,7 @@ const callback = async (req, res = response) => {
   const { amount, comment } = req.query;
 
   try {
-
-    const memo = (!comment) ? 'Pago desde Lightning Address' : comment;
+    const memo = !comment ? 'Pago desde Lightning Address' : comment;
     const pr = await getInvoice(amount / 1000, memo);
     res.send({
       pr: pr,
@@ -63,5 +62,5 @@ const callback = async (req, res = response) => {
 module.exports = {
   newInvoice,
   paymentConfirmation,
-  callback
+  callback,
 };
