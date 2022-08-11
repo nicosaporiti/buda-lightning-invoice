@@ -37,7 +37,38 @@ const paymentConfirmation = async (req, res = response) => {
   }
 };
 
+const callback = async (req, res = response) => {
+  const { amount, comment } = req.query;
+
+  try {
+    if (amount <= 0) {
+      res.status(400).json({
+        ok: false,
+        error: 'Amount must be greater than 0',
+      });
+    }
+    if (comment === '') {
+      comment = 'Pago recibido por Lightning Address';
+    }
+    const pr = await getInvoice(amount, comment);
+    res.send({
+      pr: pr,
+      successAction: {
+        tag: 'message',
+        message: 'Gracias por tu pago',
+      },
+      routes: [],
+    });
+  } catch (error) {
+    res.status(400).json({
+      ok: false,
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   newInvoice,
   paymentConfirmation,
+  callback
 };
