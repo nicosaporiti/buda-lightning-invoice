@@ -4,6 +4,7 @@ const { fieldsValidation } = require('../middlewares/fields-validator');
 const router = Router();
 const {
   newInvoice,
+  newOrder,
   paymentConfirmation,
   callback,
 } = require('../controllers/buda');
@@ -19,6 +20,19 @@ router.post(
   ],
   fieldsValidation,
   newInvoice
+);
+
+router.post(
+  '/neworder',
+  [
+    check('amount', 'Ingrese un número entero mayor a 1')
+      .notEmpty()
+      .isNumeric()
+      .isInt({ min: 1 }),
+    check('msg', 'Debe ingresar un mensaje').notEmpty().isLength({ min: 1 }),
+  ],
+  fieldsValidation,
+  newOrder
 );
 
 router.post(

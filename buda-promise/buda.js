@@ -254,6 +254,17 @@ Buda.prototype.lightning_network_invoices = function(amount, currency, memo, exp
   return this._request('POST','/api/v2/lightning_network_invoices',null,payload,true);
 }
 
+// https://www.buda.com/api/v2/markets/{market_id}/lightning_payment_order
+
+Buda.prototype.lightning_payment_order = function(market_id, amount, memo) {
+  var payload={
+    amount: amount,
+    memo: memo,
+  }
+  return this._request('POST','/api/v2/markets/'+market_id+'/lightning_payment_order',null,payload,true);
+}
+
+
 // https://api.buda.com/#dep-sito-dinero-fiat
 Buda.prototype.new_fiat_deposit = function(currency, amount, simulate) {
   var payload={
