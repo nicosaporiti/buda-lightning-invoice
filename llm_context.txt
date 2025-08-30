@@ -1,0 +1,58 @@
+
+# LLM Context for buda-lightning-invoice
+
+This document provides a detailed explanation of the `buda-lightning-invoice` repository for an LLM to understand its functionality.
+
+## Project Overview
+
+This project is a Node.js application that acts as a backend service to create and verify Buda.com Lightning invoices. It exposes a single API endpoint to generate an invoice and then polls Buda.com to check for payment confirmation.
+
+## Key Files and their Purpose
+
+- **`index.js`**: The main entry point of the application. It initializes the Express server, sets up middleware (like CORS and body-parser), and defines the main API route.
+
+- **`package.json`**: Defines the project's dependencies, scripts, and metadata. Key dependencies include `express`, `cors`, `dotenv`, and a local package `buda-promise`.
+
+- **`routes/buda.js`**: Defines the API routes. It maps the `POST /api/v1/buda` endpoint to the `createInvoice` controller. It also includes a middleware for field validation.
+
+- **`controllers/buda.js`**: Contains the core logic for handling the API requests. The `createInvoice` function is the main controller. It takes an amount from the request body, calls the `getInvoice` helper to create a new invoice, and then uses the `getPaymentConfirmation` helper to wait for the payment.
+
+- **`helpers/getInvoice.js`**: This helper function is responsible for making the actual API call to Buda.com to create a new Lightning invoice. It uses the `buda-promise` library for this.
+    - **Parameters:**
+        - `amount` (Number): The amount in satoshis for the invoice.
+    - **Returns:**
+        - A Promise that resolves to an `invoice` object from the Buda.com API. This object contains details like the invoice ID, the encoded invoice (BOLT11), and its state.
+
+- **`helpers/getPaymentConfirmation.js`**: This helper function polls Buda.com to check the status of an invoice. It repeatedly calls the Buda.com API every 3 seconds until the invoice is marked as 'paid'.
+    - **Parameters:**
+        - `invoiceId` (String): The ID of the invoice to check.
+    - **Returns:**
+        - A Promise that resolves to the final `invoice` object from the Buda.com API once it's paid. The structure is the same as the one returned by `getInvoice`, but the `state` will be `paid`.
+
+- **`buda-promise/buda.js`**: This is a custom library (not published to npm, but included in the repo) that acts as a wrapper for the Buda.com API. It simplifies making authenticated requests to the Buda.com API endpoints for creating and checking invoices.
+
+- **`middlewares/fields-validator.js`**: A middleware to validate the request body, ensuring that the `amount` field is present and is a number.
+
+## Workflow
+
+1.  A client sends a `POST` request to `/api/v1/buda` with an `amount` in the request body.
+2.  The `fields-validator` middleware validates the input.
+3.  The `createInvoice` controller in `controllers/buda.js` is called.
+4.  The controller calls the `getInvoice` helper.
+5.  The `getInvoice` helper uses `buda-promise` to send a request to the Buda.com API to create a Lightning invoice for the specified amount.
+6.  If the invoice is created successfully, the `getPaymentConfirmation` helper is called.
+7.  `getPaymentConfirmation` polls the Buda.com API every few seconds to check the status of the invoice.
+8.  Once the invoice is paid, the helper returns the payment confirmation data.
+9.  The `createInvoice` controller sends the payment confirmation back to the client as the API response.
+
+## How to Run the Project
+
+1.  Install dependencies: `npm install`
+2.  Set up environment variables. Create a `.env` file with your Buda.com API key and secret:
+    ```
+    API_KEY=your_api_key
+    API_SECRET=your_api_secret
+    ```
+3.  Start the server: `npm start`
+
+The server will be running on the port specified in the `index.js` file (default is 3000).
