@@ -8,12 +8,16 @@ const app = express();
 // CORS
 app.use(cors());
 
-app.listen(port, () => {
-  console.log(`Listening at port ${port}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  app.listen(port, () => {
+    console.log(`Listening at port ${port}`);
+  });
+}
 
 app.use(express.json());
 
 // Routes
 
 app.use('/', require('./routes/buda'));
+
+module.exports = app;
