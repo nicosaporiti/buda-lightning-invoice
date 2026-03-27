@@ -5,6 +5,7 @@ const router = Router();
 const {
   newInvoice,
   paymentConfirmation,
+  lnurlp,
   callback,
 } = require('../controllers/buda');
 
@@ -27,6 +28,8 @@ router.post(
   fieldsValidation,
   paymentConfirmation
 );
+
+router.get('/.well-known/lnurlp/:username', lnurlp);
 
 router.get(
   '/callback',

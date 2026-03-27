@@ -5,6 +5,8 @@ const cors = require('cors');
 
 const app = express();
 
+app.set('trust proxy', true);
+
 // CORS
 app.use(cors());
 

@@ -37,6 +37,21 @@ const paymentConfirmation = async (req, res = response) => {
   }
 };
 
+const lnurlp = (req, res = response) => {
+  const domain = process.env.DOMAIN || req.get('host');
+  const protocol = req.protocol;
+  const metadata = JSON.stringify([['text/plain', `Pago Lightning a ${req.params.username}`]]);
+
+  res.send({
+    callback: `${protocol}://${domain}/callback`,
+    maxSendable: 100000000,
+    minSendable: 1000,
+    metadata,
+    tag: 'payRequest',
+    commentAllowed: 140,
+  });
+};
+
 const callback = async (req, res = response) => {
   const { amount, comment } = req.query;
 
@@ -62,5 +77,6 @@ const callback = async (req, res = response) => {
 module.exports = {
   newInvoice,
   paymentConfirmation,
+  lnurlp,
   callback,
 };
