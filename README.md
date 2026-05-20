@@ -1,161 +1,297 @@
----
-title: "Recibir pagos web en Bitcoin con LN"
-date: "2021-11-29"
-author: "Nicolás Saporiti"
-image: "https://i.imgur.com/ixihN2j.jpg"
-resume: "Te explico como implementar un sistema sencillo para recibir pagos web en Bitcoin utilizando lightning network."
----
-# Recibir pagos web en Bitcoin con Lightning Network
+# Buda Lightning Invoice
 
-Antes de comenzar es importante saber que es Lightning Network y por qué día a día crece en adopción.
+Backend Node.js/Express para crear invoices de Bitcoin Lightning Network con la API de Buda.com, verificar si fueron pagadas y exponer endpoints compatibles con LNURL-pay / Lightning Address.
 
-La **red Lightning**, en inglés **Lightning Network** (LN), es una [red](https://es.wikipedia.org/wiki/Red_de_computadoras) [entre pares](https://es.wikipedia.org/wiki/P2P) (P2P) concebida como sistema de segunda capa para [Bitcoin](https://es.wikipedia.org/wiki/Bitcoin) (BTC) que permite hacer micropagos de forma casi instantánea. 
+El servicio funciona como un wrapper server-side: las credenciales privadas de Buda quedan en el servidor y los clientes consumen endpoints HTTP simples.
 
-Su diseño original fue publicado en enero de 2016 por Joseph Poon y Thaddeus Dryja.[2](https://es.wikipedia.org/wiki/Lightning_Network#cite_note-lightning-2)
+## Estado del proyecto
 
-Además de permitir transacciones casi inmediatas, LN posee otras importantes ventajas como:
+- API Express con CORS habilitado y soporte JSON.
+- Integracion privada con Buda.com mediante `buda-promise/buda.js`.
+- Creacion de invoices Lightning BOLT11.
+- Verificacion de pagos buscando deposits `confirmed`.
+- Endpoints LNURL-pay para Lightning Address.
+- Tests unitarios e integracion con Jest y Supertest.
+- Configuracion de despliegue en Fly.io.
 
-- Comisiones casi cero.
-- Es descentralizado operando entre nodos conectados a través de canales.
-- No admite censura, cualquier persona puede poner en marcha su propio nodo. Ver [www.getumbrel.com](https://getumbrel.com/)
-- El requerimiento de hardware para instalar un nodo es de bajo costo, inclusive la mayoría utilizan un simple raspberry o algún computador en desuso con sistema operativo linux.
+## Requisitos
 
-En este post no voy a abordar cómo instalar un nodo y la complejidad de su gestión. Pero lo que si vamos a ver, es como podemos implementar un sistema de pago en LN utilizando el nodo de [www.buda.com](https://www.buda.com/)
+- Node.js 20 recomendado. El `Dockerfile` usa Node `20.18.0`.
+- npm.
+- Cuenta en Buda.com con `BUDA_API_KEY` y `BUDA_API_SECRET`.
+- `nodemon` disponible para `npm run dev`. Si no lo tienes, puedes usar `npm start`.
 
-Algunos exchanges ya han implementado soluciones LN para brindarle servicios a sus clientes, y es probable que en el futuro inmediato sea el común. Buda ya hace tiempo dispone de su propio nodo y lo ha puesto al servicio de sus clientes, y lo mejor de todo es que tienen una [API](https://api.buda.com/) con llamadas privadas para que podamos crear nuestros propios desarrollos.
+## Configuracion
 
-## Requisitos para implementar pagos web con LN
+Crea un archivo `.env` en la raiz del proyecto:
 
-Si no eres desarrollador, no creo que puedas implementar el sistema. De todos modos si te interesa, lees y aprendes a programar, en un tiempo podrás hacerlo.
-
-Lo primero que necesitamos es tener una cuenta en BUDA y habilitar nuestras API Key y API Secret.
-
-> Nota importante: no debes compartir con nadie ni exponer tus llaves privadas.
-
-Una vez que disponemos de nuestras llaves privadas te recomiendo que comiences a jugar haciendo llamadas a la API y verificar que todo funcione. Para facilitarlo existe un repositorio que maneja las promesas de la API. Inclusive yo colaboré con un PR (el primero de mi vida! 😀) agregando la función requerida para generar un invoice LN. El [repo](https://github.com/ajunge/buda-promise) .
-
-Una vez que te familiarices con la API y leas la documentación, te voy a dar los pasos para generar un formulario de pago web con el que tus clientes / amigos pueden pagarte con bitcoin.
-
-### Creando nuestro Backend
-
-> Te recomiendo que todos los llamados que hagas a la API corran del lado del servidor, ya que si lo haces del lado del cliente, tus llaves quedan expuestas.
-
-En mi caso cree el backend en Node.js con Express y su objetivo es muy simple: resuelve dos endpoints para que uno genere el invoice y el otro verifique que la transferencia fue realizada. Acá puedes ver el [repo](https://github.com/nicosaporiti/buda-lightning-invoice)
-
-Para comenzar clonaremos el repositorio:
-
-```
-$ git clone https://github.com/nicosaporiti/buda-lightning-invoice.git
-```
-
-Instalaremos las dependencias
-
-```
-$ nmp install
-```
-
-Crearemos un archivo .env en la raíz del proyecto e ingresaremos nuestras llaves privadas :
-
-```
+```env
 PORT=3001
-BUDA_API_KEY='tu_buda_api_key'
-BUDA_API_SECRET='tu_buda_api_secret'
+BUDA_API_KEY=tu_buda_api_key
+BUDA_API_SECRET=tu_buda_api_secret
+DOMAIN=tu-dominio.com
 ```
 
-Ejecutaremos el proyecto
+`PORT` es opcional. Si no se define, la aplicacion escucha en `8080`, que coincide con `fly.toml`.
 
-```
+`DOMAIN` tambien es opcional. Se usa para construir el callback de Lightning Address en `/.well-known/lnurlp/:username`. Si no se define, se usa el host de la request.
+
+## Instalacion y uso local
+
+```bash
+npm install
 npm run dev
 ```
 
-En modo desarrollo utilizaremos nodemon, es recomendable que lo instales a nivel global.
+Con la configuracion anterior, la API queda disponible en:
 
-Instalado y ejecutado nuestro back, utilizaremos [Postman](https://www.postman.com/) para probar nuestras rutas.
-
-http://localhost:3001/newinvoice
-
-La función para obtener el invoice recibe dos parámetros, el monto en satoshis (unidad mínima de bitcoin) y un mensaje en formato string que se incluye en la transferencia. Al generar el invoice recibimos como respuesta la dirección del invoice que luego procesaremos en nuestro frontend para generar el QR con el cuál el usuario podrá escanearlo y realizar la tansferencia.
-
-Es un llamado del tipo POST y se envía en json, ejemplo:
-
+```text
+http://localhost:3001
 ```
+
+Para correr sin hot reload:
+
+```bash
+npm start
+```
+
+## Scripts
+
+| Comando | Descripcion |
+| --- | --- |
+| `npm run dev` | Inicia el servidor con `nodemon index.js`. |
+| `npm start` | Inicia el servidor con `node index.js`. |
+| `npm test` | Ejecuta la suite de Jest. |
+| `npm run test:coverage` | Ejecuta tests y genera coverage. |
+| `npm run test:watch` | Ejecuta Jest en modo watch. |
+
+## Endpoints
+
+### `POST /newinvoice`
+
+Crea una invoice Lightning en Buda.
+
+Request:
+
+```json
 {
-    "amount": 5000,
-    "msg": "Cuota del asado"
+  "amount": 5000,
+  "msg": "Cuota del asado"
 }
 ```
 
-Si la respuesta es correcta, recibimos la siguiente respuesta:
+- `amount`: monto en satoshis. Debe ser un entero mayor o igual a `1`.
+- `msg`: descripcion o memo de la invoice. No puede estar vacio.
 
-```
+Respuesta exitosa:
+
+```json
 {
-    "invoice": "lnbc50...",
-    "amount": 5000,
-    "msg": "Cuota del asado"
+  "invoice": "lnbc50...",
+  "amount": 5000,
+  "msg": "Cuota del asado"
 }
 ```
 
-Los controladores de las rutas se encuentran validados con express-validator.
+### `POST /status`
 
-Luego para cerrar el ciclo del proceso de pago, es importante que informemos al cliente que la transferencia fue un éxito. Para ello vamos a verificar que el invoice se encuentra pagado y para ello utlizamos la ruta http://localhost:3001/status donde enviamos un llamado tipo POST con el invoice en json como parámetro
+Verifica si una invoice fue pagada y confirmada.
 
-```
+Request:
+
+```json
 {
-    "invoice": "lnbc50...",
+  "invoice": "lnbc50..."
 }
 ```
 
-Si todo fue correcto, tendremos la siguiente respuesta:
+Respuesta:
 
-```
+```json
 {
-    "invoice": "lnbc50...",
-    "status": false
+  "invoice": "lnbc50...",
+  "status": false
 }
 ```
 
-En este caso el status para el invoice es **<u>false</u>** ya que no se encuentra pago, con lo que ya tenemos todo lo necesario para crear nuestro frontend e implementar el formulario de pago.
+`status` es `true` solo cuando la invoice existe entre los deposits BTC de Buda y su estado es `confirmed`.
 
-Una vez que verifiquemos que el backend funciona, puedes subirlo a Heroku.
+### `GET /.well-known/lnurlp/:username`
 
-Como nota, el servidor en Express  utiliza CORS ya que es requerido por la API de Buda. No realicé test, pero si quieres aportar con ello, agradecido.
+Endpoint de metadata para Lightning Address / LNURL-pay.
 
-### Creando nuestro Frontend
+Ejemplo:
 
-Para el front utilicé create-react-app y lo primero que debes hacer es clonar el repo:
-
-```
-$ git clone https://github.com/nicosaporiti/ln-form.git
+```text
+GET /.well-known/lnurlp/nicolas
 ```
 
-Luego instalar todas las dependencias:
+Respuesta:
 
-> En nuestro frontend no debemos guardar ninguna llave privada ya que quedan expuestas.
-
-En este caso, ya tiene la conectividad con nuestro backend pero debemos crear el archivo .env para indicar los endpoint de nuestro servidor:
-
+```json
+{
+  "callback": "https://tu-dominio.com/callback",
+  "maxSendable": 100000000,
+  "minSendable": 1000,
+  "metadata": "[[\"text/plain\",\"Pago Lightning a nicolas\"]]",
+  "tag": "payRequest",
+  "commentAllowed": 140
+}
 ```
-REACT_APP_API_URL_INVOICE='https://tuservidor.com/newinvoice'
-REACT_APP_API_URL_STATUS='https://tuservidor.com/status'
+
+Los montos de LNURL-pay se expresan en millisatoshis.
+
+### `GET /callback`
+
+Callback LNURL-pay. Recibe un monto en millisatoshis, lo convierte a satoshis y crea una invoice Lightning.
+
+Query params:
+
+- `amount`: requerido, entero mayor o igual a `1000` millisatoshis.
+- `comment`: opcional, se usa como memo de la invoice.
+
+Ejemplo:
+
+```text
+GET /callback?amount=5000000&comment=Gracias
 ```
 
- Ya resuelto todo, debes ejecutar npm run start y podrás ver el formulario en tu localhost y realizar pruebas. Para subir el proyecto, puedes utilizar [Netlify](https://www.netlify.com/) y subir la carpeta build que generas con el comando npm run build.
+Respuesta:
 
-Aquí [puedes ver el proyecto terminado y enviarme unos sat de prueba](https://ln-form.netlify.app/)
+```json
+{
+  "pr": "lnbc50...",
+  "successAction": {
+    "tag": "message",
+    "message": "Gracias por tu pago"
+  },
+  "routes": []
+}
+```
 
-![LN-Form](https://i.imgur.com/c5xyiIF.png)
+Si `comment` no se envia, el memo por defecto es `Pago desde Lightning Address`.
 
-## Conclusiones
+## Errores de validacion
 
-Como pudimos aprender Lightning Network es una tecnología que rápidamente nos permite implementar un sistema de pago sin censura y con funcionalidades completas. Quiénes tengan experiencia en implementar sistemas de pago sabrán lo complicado que es desde validar, proteger datos, etc. Inclusive antes de implementar un sistema de pago tradicional, se nos pide que llenemos un interminable papeleo.
+Cuando una request no cumple las validaciones de `express-validator`, la API responde con `400`:
 
- En el caso de LN todo queda resuelto de forma simple, por ejemplo el cliente mantiene sus llaves privadas y aprueba las transacciones. Del lado del servidor (nodo) contamos con una poderosa API para gestionar y podemos concentrarnos en desarrollar una experiencia de pago increible. Lo mejor de todo es que podemos recibir pagos a nivel global y al instante. Sin duda, los sistemas de pago tradicional con la mayor adopción de LN quedarán en el pasado.
+```json
+{
+  "ok": false,
+  "errors": {
+    "amount": {
+      "msg": "Ingrese un número entero mayor a 1"
+    }
+  }
+}
+```
 
-Aclaro que **<u>no todo en LN es una maravilla</u>**. Es una tecnología muy reciente y en desarrollo, por lo que existen fallos. Principlamente hay fallos de liquidez en los nodos ya que  se debe inmovilizar bitcoin. Un buen nodo debe tener muchos canales y a mayor cantidad de canales, más capital se requiere inmovilizar.
+Cuando falla una llamada a Buda u otra operacion de negocio, la respuesta tambien usa `400`:
 
-Los pagos en LN están recomendados para montos pequeños, ya que por el problema de liquidez antes comentado pueden involucrar elevadas comisiones que cobran los nodos e incluso, puede que las transacciones fallen.
+```json
+{
+  "ok": false,
+  "error": "Buda error ..."
+}
+```
 
-Pero los pro son más que los contra y ya podemos palpar lo que significa la libertad financiera de bitcoin. Otro pro importante que tiene esta tecnología es que al ser pagos pequeños, la volatilidad en el precio del Bitcoin no afecta tanto, inclusive se podría generar un mercado secundario para liquidar los pagos una vez que los recibimos y en cuestión de segundos podrías dejar el pago convertido a la moneda fiat que prefieras.
+## Flujo interno
 
-En este caso implementamos un sistema utilizando el nodo de un exchange, pero perfectamente podemos gestionar nuestro propio nodo, ***<u>con lo que lograremos completa independencia y es algo que veremos en otro post</u>***.
+```text
+HTTP Request
+  -> Express route
+  -> express-validator + fieldsValidation
+  -> controller
+  -> helper
+  -> buda-promise/buda.js
+  -> Buda.com API
+  -> HTTP Response
+```
 
+Archivos principales:
+
+- `index.js`: configura Express, CORS, JSON body parser y puerto.
+- `routes/buda.js`: define rutas y reglas de validacion.
+- `controllers/buda.js`: maneja las respuestas HTTP y flujo de negocio.
+- `helpers/getInvoice.js`: crea invoices Lightning en Buda.
+- `helpers/getPaymentConfirmation.js`: verifica deposits confirmados.
+- `middlewares/fields-validator.js`: normaliza errores de validacion.
+- `buda-promise/buda.js`: wrapper local de la API de Buda con autenticacion HMAC-SHA384.
+
+## Autenticacion con Buda
+
+Los endpoints publicos de este servicio no requieren autenticacion propia. Las credenciales de Buda se usan unicamente desde el backend.
+
+El wrapper `buda-promise/buda.js` firma las llamadas privadas con HMAC-SHA384 y envia:
+
+```text
+X-SBTC-APIKEY
+X-SBTC-NONCE
+X-SBTC-SIGNATURE
+```
+
+Nunca expongas `BUDA_API_KEY` ni `BUDA_API_SECRET` en un frontend.
+
+## Tests
+
+La suite actual cubre:
+
+- Helpers de creacion y verificacion de invoices.
+- Controladores.
+- Middleware de validacion.
+- Integracion de rutas con Supertest.
+
+Ejecutar tests:
+
+```bash
+npm test
+```
+
+Ejecutar coverage:
+
+```bash
+npm run test:coverage
+```
+
+`jest.config.js` define umbrales globales minimos:
+
+- branches: `60`
+- functions: `70`
+- lines: `70`
+- statements: `70`
+
+## Despliegue
+
+El repo incluye configuracion para Fly.io:
+
+- App: `budaln`
+- Region primaria: `gru`
+- Puerto interno: `8080`
+- VM: `1gb`, CPU shared
+
+Configurar secretos:
+
+```bash
+fly secrets set BUDA_API_KEY=tu_buda_api_key
+fly secrets set BUDA_API_SECRET=tu_buda_api_secret
+fly secrets set DOMAIN=tu-dominio.com
+```
+
+El `Dockerfile` instala dependencias con `npm ci`, copia la aplicacion y ejecuta:
+
+```bash
+npm run start
+```
+
+## Notas de seguridad
+
+- CORS esta habilitado para permitir consumo desde frontends externos.
+- No hay rate limiting propio en la API.
+- La validacion de inputs ocurre en las rutas antes de llegar a los controladores.
+- Las credenciales privadas deben vivir solo en variables de entorno del servidor.
+
+## Recursos
+
+- Documentacion detallada de endpoints: `API.md`
+- Wrapper local de Buda: `buda-promise/`
+- Frontend historico de referencia: https://github.com/nicosaporiti/ln-form
